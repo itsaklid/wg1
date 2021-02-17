@@ -226,9 +226,10 @@ class HistogramPlot:
         :param label: Component label for the histogram.
         :param data: Data to be histogramed.
         :param weights: Weights for the events in data.
-        :param comp_type:
+        :param comp_type: ``single`` or ``stacked`` for plotting components
+            individually or stacking them on each other.
         :param histtype: Specifies the histtype of the component in the
-        histogram.
+            histogram.
         :param color: Color of the histogram component.
         :param ls: Linestyle of the histogram component.
         """
