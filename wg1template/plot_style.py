@@ -102,20 +102,23 @@ kit_color_cycler = cycler("color", KITColors.default_colors)
 tango_color_cycler = cycler("color", TangoColors.default_colors)
 
 
-def set_matplotlibrc_params():
+def set_matplotlibrc_params(
+    errorbar_caps=False,
+    top_right_ticks=False,
+):
     """
     Sets default parameters in the matplotlibrc.
     :return: None
     """
     xtick = {
-        'top': True,
+        'top': top_right_ticks,
         'minor.visible': True,
         'direction': 'in',
         'labelsize': 10
     }
 
     ytick = {
-        'right': True,
+        'right': top_right_ticks,
         'minor.visible': True,
         'direction': 'in',
         'labelsize': 10
@@ -136,7 +139,7 @@ def set_matplotlibrc_params():
         'frameon': False
     }
     errorbar = {
-        'capsize': 2
+        'capsize': 2 if errorbar_caps else 0
     }
 
     plt.rc('lines', **lines)
