@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(
-    name='WG1Template',
+    name='wg1',
     version='0.0.1',
-    packages=['wg1template'],
+    packages=['wg1'],
     url='',
     license='MIT',
     author='Max Welsch, Markus Prim, Peter Lewis',
