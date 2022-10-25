@@ -729,6 +729,9 @@ def create_hist_ratio_figure():
 def create_solo_figure(figsize=(5, 5), dpi=200):
     return plt.subplots(1, 1, figsize=figsize, dpi=dpi)
 
+def create_multi_figure(rows, columns, figsize=(5, 5), dpi=200):
+    return plt.subplots(rows, columns, figsize=figsize, dpi=dpi)
+
 
 def add_descriptions_to_plot(
     ax: plt.axis,
