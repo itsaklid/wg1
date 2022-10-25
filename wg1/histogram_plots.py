@@ -12,7 +12,7 @@ import pandas as pd
 from scipy.stats import binned_statistic
 from uncertainties import unumpy as unp
 
-import wg1template.plot_style as plot_style
+import wg1.plot_style as plot_style
 
 plot_style.set_matplotlibrc_params()
 
@@ -575,7 +575,21 @@ class DataMCHistogramPlot(HistogramPlot):
             axis=0,
         )
 
-        hdata, _ = np.histogram(self._data_component.data, bins=bin_edges)
+        if style == "normalized":
+            hdata, _ = np.histogram(self._data_component.data, bins=bin_edges)
+            # Normalize errors to 1 before we change the data
+            hdata_err = np.sqrt(hdata)/hdata.sum()
+            # Normalize data to 1
+            hdata = hdata / hdata.sum()
+            
+
+            norm_weight = np.array(
+                [comp.weights.sum() for comp in self._mc_components["MC"]]
+            ).sum()            
+
+        else:
+            hdata, _ = np.histogram(self._data_component.data, bins=bin_edges)
+            hdata_err = np.sqrt(hdata)
 
         if style.lower() == "stacked":
             ax1.hist(
@@ -602,6 +616,33 @@ class DataMCHistogramPlot(HistogramPlot):
                 label="MC stat. unc.",
             )
 
+        if style.lower() == "normalized":
+            ax1.hist(
+                x=[comp.data for comp in self._mc_components["MC"]],
+                bins=bin_edges,
+                weights=[
+                    comp.weights / norm_weight for comp in self._mc_components["MC"]
+                ],
+                stacked=True,
+                edgecolor="black",
+                lw=0.3,
+                color=[comp.color for comp in self._mc_components["MC"]],
+                label=[comp.label for comp in self._mc_components["MC"]],
+                histtype="stepfilled",
+            )
+
+            ax1.bar(
+                x=bin_mids,
+                height=(2 * np.sqrt(sum_w2)) / norm_weight,
+                width=self.bin_width,
+                bottom=(sum_w - np.sqrt(sum_w2)) / norm_weight,
+                color="black",
+                hatch="///////",
+                fill=False,
+                lw=0,
+                label="MC stat. unc.",
+            )
+
         if style.lower() == "summed":
             ax1.bar(
                 x=bin_mids,
@@ -616,14 +657,15 @@ class DataMCHistogramPlot(HistogramPlot):
         ax1.errorbar(
             x=bin_mids,
             y=hdata,
-            yerr=np.sqrt(hdata),
+            yerr=hdata_err,
             ls="",
             marker=".",
             color="black",
             label=self._data_component.label,
         )
 
-        y_label = self._get_y_label(False, bin_width, evts_or_cand=ylabel)
+        normed = True if style.lower() == "normalized" else False
+        y_label = self._get_y_label(normed, bin_width, evts_or_cand=ylabel)
         # ax1.legend(loc=0, bbox_to_anchor=(1,1))
         ax1.set_ylabel(y_label, plot_style.ylabel_pos)
 
@@ -639,22 +681,32 @@ class DataMCHistogramPlot(HistogramPlot):
         ax2.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
         ax2.set_ylim((-1, 1))
 
-        try:
-            uhdata = unp.uarray(hdata, np.sqrt(hdata))
-            uhmc = unp.uarray(sum_w, np.sqrt(sum_w2))
-            ratio = (uhdata - uhmc) / uhdata
+        #try:
+        uhdata = unp.uarray(hdata, hdata_err)
+        uhmc = (
+            unp.uarray(sum_w / norm_weight, np.sqrt(sum_w2) / norm_weight)
+            if style.lower() == "normalized"
+            else unp.uarray(sum_w, np.sqrt(sum_w2))
+        )
+        ratio = (uhdata - uhmc) / uhdata
 
-            ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
-            ax2.errorbar(
-                bin_mids,
-                unp.nominal_values(ratio),
-                yerr=unp.std_devs(ratio),
-                ls="",
-                marker=".",
-                color=plot_style.KITColors.kit_black,
-            )
-        except ZeroDivisionError:
-            ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
+        from rdstar1prong.utils.debug import debug_print
+        
+        debug_print(uhdata)
+        debug_print(uhmc)
+        debug_print(ratio)
+        
+        ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
+        ax2.errorbar(
+            bin_mids,
+            unp.nominal_values(ratio),
+            yerr=unp.std_devs(ratio),
+            ls="",
+            marker=".",
+            color=plot_style.KITColors.kit_black,
+        )
+        #except ZeroDivisionError:
+        #    ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
 
         plt.subplots_adjust(hspace=0.08)
 
