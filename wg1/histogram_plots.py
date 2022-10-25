@@ -578,14 +578,13 @@ class DataMCHistogramPlot(HistogramPlot):
         if style == "normalized":
             hdata, _ = np.histogram(self._data_component.data, bins=bin_edges)
             # Normalize errors to 1 before we change the data
-            hdata_err = np.sqrt(hdata)/hdata.sum()
+            hdata_err = np.sqrt(hdata) / hdata.sum()
             # Normalize data to 1
             hdata = hdata / hdata.sum()
-            
 
             norm_weight = np.array(
                 [comp.weights.sum() for comp in self._mc_components["MC"]]
-            ).sum()            
+            ).sum()
 
         else:
             hdata, _ = np.histogram(self._data_component.data, bins=bin_edges)
@@ -681,7 +680,7 @@ class DataMCHistogramPlot(HistogramPlot):
         ax2.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
         ax2.set_ylim((-1, 1))
 
-        #try:
+        # try:
         uhdata = unp.uarray(hdata, hdata_err)
         uhmc = (
             unp.uarray(sum_w / norm_weight, np.sqrt(sum_w2) / norm_weight)
@@ -691,11 +690,11 @@ class DataMCHistogramPlot(HistogramPlot):
         ratio = (uhdata - uhmc) / uhdata
 
         from rdstar1prong.utils.debug import debug_print
-        
+
         debug_print(uhdata)
         debug_print(uhmc)
         debug_print(ratio)
-        
+
         ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
         ax2.errorbar(
             bin_mids,
@@ -705,13 +704,13 @@ class DataMCHistogramPlot(HistogramPlot):
             marker=".",
             color=plot_style.KITColors.kit_black,
         )
-        #except ZeroDivisionError:
+        # except ZeroDivisionError:
         #    ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
 
         plt.subplots_adjust(hspace=0.08)
 
 
-def create_hist_ratio_figure():
+def create_hist_ratio_figure(figsize=(5, 5), dpi=400):
     """Create a matplotlib.Figure for histogram ratio plots.
 
     :return: A maptlotlib.Figure instance and a matplotlib.axes instance.
@@ -728,6 +727,7 @@ def create_hist_ratio_figure():
 
 def create_solo_figure(figsize=(5, 5), dpi=400):
     return plt.subplots(1, 1, figsize=figsize, dpi=dpi)
+
 
 def create_multi_figure(rows, columns, figsize=(5, 5), dpi=400):
     return plt.subplots(rows, columns, figsize=figsize, dpi=dpi)
