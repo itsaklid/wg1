@@ -688,13 +688,7 @@ class DataMCHistogramPlot(HistogramPlot):
             else unp.uarray(sum_w, np.sqrt(sum_w2))
         )
         ratio = (uhdata - uhmc) / uhdata
-
-        from rdstar1prong.utils.debug import debug_print
-
-        debug_print(uhdata)
-        debug_print(uhmc)
-        debug_print(ratio)
-
+        
         ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
         ax2.errorbar(
             bin_mids,
