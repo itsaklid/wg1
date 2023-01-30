@@ -143,3 +143,49 @@ def get_auto_binning_for_compound_df(
             max_val = tag_binning[2]
 
     return number_of_bins, min_val, max_val
+
+def create_hist_ratio_figure(figsize=(5, 5), dpi=400):
+    """Create a matplotlib.Figure for histogram ratio plots.
+
+    :return: A maptlotlib.Figure instance and a matplotlib.axes instance.
+    """
+    return plt.subplots(
+        2,
+        1,
+        figsize=(5, 5),
+        dpi=200,
+        sharex=True,
+        gridspec_kw={"height_ratios": [3.5, 1]},
+    )
+
+
+def create_solo_figure(figsize=(5, 5), dpi=400):
+    return plt.subplots(1, 1, figsize=figsize, dpi=dpi)
+
+
+def create_multi_figure(rows, columns, figsize=(5, 5), dpi=400):
+    return plt.subplots(rows, columns, figsize=figsize, dpi=dpi)
+
+
+def add_descriptions_to_plot(
+    ax: plt.axis,
+    experiment: Union[str, None] = None,
+    luminosity: Union[str, None] = None,
+    additional_info: Union[str, None] = None,
+):
+    ax.set_title(
+        experiment,
+        loc="left",
+        fontdict={"size": 16, "style": "normal", "weight": "bold"},
+    )
+    ax.set_title(luminosity, loc="right")
+    ax.annotate(
+        additional_info,
+        (0.02, 0.98),
+        xytext=(4, -4),
+        xycoords="axes fraction",
+        textcoords="offset points",
+        fontweight="bold",
+        ha="left",
+        va="top",
+    )
