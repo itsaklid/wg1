@@ -11,10 +11,10 @@ import pandas as pd
 
 
 def export(
-        fig: plt.Figure,
-        filename: Union[str, os.fspath],
-        target_dir: str = "plots/",
-        file_formats: Tuple[str] = (".pdf", ".png")
+    fig: plt.Figure,
+    filename: Union[str, os.fspath],
+    target_dir: str = "plots/",
+    file_formats: Tuple[str] = (".pdf", ".png"),
 ) -> None:
     """
     Convenience function for saving a matplotlib figure.
@@ -31,16 +31,20 @@ def export(
         os.makedirs(target_dir)
 
     for file_format in file_formats:
-        fig.savefig(os.path.join(target_dir, f'{filename}{file_format}'), bbox_inches="tight")
+        fig.savefig(
+            os.path.join(target_dir, f"{filename}{file_format}"), bbox_inches="tight"
+        )
 
 
 # TODO maybe this should be split into four different functions???
-def add_cut_to_axis(ax: plt.axis,
-                    cut_left: Optional[float] = None,
-                    cut_right: Optional[float] = None,
-                    cut_window: Optional[Tuple[float, float]] = None,
-                    keep_window: Optional[Tuple[float, float]] = None,
-                    color: str = 'white'):
+def add_cut_to_axis(
+    ax: plt.axis,
+    cut_left: Optional[float] = None,
+    cut_right: Optional[float] = None,
+    cut_window: Optional[Tuple[float, float]] = None,
+    keep_window: Optional[Tuple[float, float]] = None,
+    color: str = "white",
+):
     """
     Adds a "cut" to a given axis. The cut is shown as shaded area with the color
     given in the parameter color.
@@ -59,27 +63,32 @@ def add_cut_to_axis(ax: plt.axis,
 
     if cut_left is not None:
         ax.axvspan(x_lim_low, cut_left, facecolor=color, alpha=0.7)
-        ax.axvline(cut_left, color='black', linestyle='dashed', lw=1.5, label='Cut')
+        ax.axvline(cut_left, color="black", linestyle="dashed", lw=1.5, label="Cut")
     elif cut_right is not None:
         ax.axvspan(cut_right, x_lim_high, facecolor=color, alpha=0.7)
-        ax.axvline(cut_right, color='black', linestyle='dashed', lw=1.5, label='Cut')
+        ax.axvline(cut_right, color="black", linestyle="dashed", lw=1.5, label="Cut")
     elif cut_window is not None:
         ax.axvspan(cut_window[0], cut_window[1], facecolor=color, alpha=0.7)
-        ax.axvline(cut_window[0], color='black', linestyle='dashed', lw=1.5, label='Cut')
-        ax.axvline(cut_window[1], color='black', linestyle='dashed', lw=1.5)
+        ax.axvline(
+            cut_window[0], color="black", linestyle="dashed", lw=1.5, label="Cut"
+        )
+        ax.axvline(cut_window[1], color="black", linestyle="dashed", lw=1.5)
     elif keep_window is not None:
         ax.axvspan(x_lim_low, keep_window[0], facecolor=color, alpha=0.7)
-        ax.axvline(keep_window[0], color='black', linestyle='dashed', lw=1.5, label='Cut')
+        ax.axvline(
+            keep_window[0], color="black", linestyle="dashed", lw=1.5, label="Cut"
+        )
         ax.axvspan(keep_window[1], x_lim_high, facecolor=color, alpha=0.7)
-        ax.axvline(keep_window[1], color='black', linestyle='dashed', lw=1.5, label='Cut')
+        ax.axvline(
+            keep_window[1], color="black", linestyle="dashed", lw=1.5, label="Cut"
+        )
 
     ax.legend(frameon=False, bbox_to_anchor=(1, 1))
 
 
 # TODO maybe move the next two function to a more appropriate module
 def get_auto_binning(
-        df: pd.DataFrame, variable: str,
-        number_of_bins: int = 100
+    df: pd.DataFrame, variable: str, number_of_bins: int = 100
 ) -> Tuple[int, Union[int, float], Union[int, float]]:
     """
     Calculates the binning for the given column in the pandas data frame.
@@ -112,11 +121,11 @@ def get_auto_binning(
 
 
 def get_auto_binning_for_compound_df(
-        dfs: Dict[str, pd.DataFrame],
-        variable: str,
-        number_of_bins: int = 0,
-        min_val: Optional[float] = None,
-        max_val: Optional[float] = None
+    dfs: Dict[str, pd.DataFrame],
+    variable: str,
+    number_of_bins: int = 0,
+    min_val: Optional[float] = None,
+    max_val: Optional[float] = None,
 ) -> Tuple[int, Union[int, float], Union[int, float]]:
     """
     Calculates the binning for a column in a dictionary of pandas data frames.
@@ -144,20 +153,6 @@ def get_auto_binning_for_compound_df(
 
     return number_of_bins, min_val, max_val
 
-def create_hist_ratio_figure(figsize=(5, 5), dpi=400):
-    """Create a matplotlib.Figure for histogram ratio plots.
-
-    :return: A maptlotlib.Figure instance and a matplotlib.axes instance.
-    """
-    return plt.subplots(
-        2,
-        1,
-        figsize=(5, 5),
-        dpi=200,
-        sharex=True,
-        gridspec_kw={"height_ratios": [3.5, 1]},
-    )
-
 
 def create_solo_figure(figsize=(5, 5), dpi=400):
     return plt.subplots(1, 1, figsize=figsize, dpi=dpi)
@@ -165,6 +160,24 @@ def create_solo_figure(figsize=(5, 5), dpi=400):
 
 def create_multi_figure(rows, columns, figsize=(5, 5), dpi=400):
     return plt.subplots(rows, columns, figsize=figsize, dpi=dpi)
+
+
+def create_hist_ratio_figure(figsize: tuple = (5, 5), dpi: int = 400):
+    """Creates a matplotlib.Figure for histogram ratio plots.
+
+    :param figsize: dimensions of the figure
+    :param dpi: number of dots per inch to set resolution of figure
+
+    :return: A maptlotlib.Figure instance and a matplotlib.axes instance.
+    """
+    return plt.subplots(
+        2,
+        1,
+        figsize=figsize,
+        dpi=dpi,
+        sharex=True,
+        gridspec_kw={"height_ratios": [3.5, 1]},
+    )
 
 
 def add_descriptions_to_plot(
