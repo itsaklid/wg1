@@ -17,6 +17,10 @@ import wg1.plot_style as plot_style
 plot_style.set_matplotlibrc_params()
 
 
+def test_func():
+    return 10
+
+
 class HistVariable:
     """
     Helper class with properties describing the variable which will be plotted
@@ -544,6 +548,8 @@ class DataMCHistogramPlot(HistogramPlot):
         sum_color=plot_style.KITColors.kit_purple,
         draw_legend: bool = True,
         legend_inside: bool = True,
+        pull="ratio",
+        pull_range: tuple = (-1, 1),
     ):
         bin_edges, bin_mids, bin_width = self._get_bin_edges()
 
@@ -676,19 +682,39 @@ class DataMCHistogramPlot(HistogramPlot):
             else:
                 ax1.legend(frameon=False, bbox_to_anchor=(1, 1))
 
-        ax2.set_ylabel(r"$\frac{\mathrm{Data - MC}}{\mathrm{Data}}$")
-        ax2.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
-        ax2.set_ylim((-1, 1))
+        if pull == "ratio":
+            ax2.set_ylabel(r"$\frac{\mathrm{Data - MC}}{\mathrm{Data}}$")
+            ax2.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
+            ax2.set_ylim((pull_range[0], pull_range[1]))
 
-        # try:
-        uhdata = unp.uarray(hdata, hdata_err)
-        uhmc = (
-            unp.uarray(sum_w / norm_weight, np.sqrt(sum_w2) / norm_weight)
-            if style.lower() == "normalized"
-            else unp.uarray(sum_w, np.sqrt(sum_w2))
-        )
-        ratio = (uhdata - uhmc) / uhdata
-        
+            # try:
+            uhdata = unp.uarray(hdata, hdata_err)
+            uhmc = (
+                unp.uarray(sum_w / norm_weight, np.sqrt(sum_w2) / norm_weight)
+                if style.lower() == "normalized"
+                else unp.uarray(sum_w, np.sqrt(sum_w2))
+            )
+            ratio = (uhdata - uhmc) / uhdata
+
+        elif pull == "residuals":
+
+            ax2.set_ylabel(
+                r"$\frac{\mathrm{N_{Data} - N_{MC}}}{\mathrm{\sqrt{\sigma_{N_{Data}}^{2} + \sigma_{N_{MC}}^{2}}}}$"
+            )
+            ax2.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
+            ax2.set_ylim((pull_range[0], pull_range[1]))
+
+            # try:
+            uhdata = unp.uarray(hdata, hdata_err)
+            uhmc = (
+                unp.uarray(sum_w / norm_weight, np.sqrt(sum_w2) / norm_weight)
+                if style.lower() == "normalized"
+                else unp.uarray(sum_w, np.sqrt(sum_w2))
+            )
+            ratio = (uhdata - uhmc) / np.sqrt(
+                np.power(unp.std_devs(uhdata), 2) + np.power(unp.std_devs(uhmc), 2)
+            )
+
         ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
         ax2.errorbar(
             bin_mids,
