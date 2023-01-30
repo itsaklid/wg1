@@ -558,29 +558,8 @@ class DataMCHistogramPlot(HistogramPlot):
         self._bin_mids = bin_mids
         self._bin_width = bin_width
 
-        sum_w = np.sum(
-            np.array(
-                [
-                    binned_statistic(
-                        comp.data, comp.weights, statistic="sum", bins=bin_edges
-                    )[0]
-                    for comp in self._mc_components["MC"]
-                ]
-            ),
-            axis=0,
-        )
-
-        sum_w2 = np.sum(
-            np.array(
-                [
-                    binned_statistic(
-                        comp.data, comp.weights**2, statistic="sum", bins=bin_edges
-                    )[0]
-                    for comp in self._mc_components["MC"]
-                ]
-            ),
-            axis=0,
-        )
+        sum_w = self.get_all_component_sum()
+        sum_w2 = self.get_all_component_sum(squared = True)
 
         if style == "normalized":
             hdata, _ = np.histogram(self._data_component.data, bins=bin_edges)
@@ -734,5 +713,43 @@ class DataMCHistogramPlot(HistogramPlot):
 
         plt.subplots_adjust(hspace=0.08)
 
+    def get_all_component_sum(self, squared: bool = False):
+        """Calculates the weighted sum of all components of the histogram.
 
+        :param squared: if true the square of the weights is used for the calculation
 
+        :returns: the weighted sum of all components
+        """
+
+        if not squared:
+            weighted_sum = np.sum(
+                np.array(
+                    [
+                        binned_statistic(
+                            comp.data,
+                            comp.weights,
+                            statistic="sum",
+                            bins=self._bin_edges,
+                        )[0]
+                        for comp in self._mc_components["MC"]
+                    ]
+                ),
+                axis=0,
+            )
+        else:
+            weighted_sum = np.sum(
+                np.array(
+                    [
+                        binned_statistic(
+                            comp.data,
+                            comp.weights**2,
+                            statistic="sum",
+                            bins=self._bin_edges,
+                        )[0]
+                        for comp in self._mc_components["MC"]
+                    ]
+                ),
+                axis=0,
+            )
+
+        return weighted_sum
