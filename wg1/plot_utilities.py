@@ -179,6 +179,11 @@ def create_hist_ratio_figure(figsize: tuple = (5, 5), dpi: int = 400):
         gridspec_kw={"height_ratios": [3.5, 1]},
     )
 
+def get_subplot_grid_dimensions(n_plots: int) -> int:
+
+    grid_dict = {3: (1, 3)}
+
+    return grid_dict[n_plots][0], grid_dict[n_plots][1]
 
 def add_descriptions_to_plot(
     ax: plt.axis,
