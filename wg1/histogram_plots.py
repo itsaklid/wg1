@@ -543,7 +543,7 @@ class DataMCHistogramPlot(HistogramPlot):
     def plot_on(
         self,
         ax1: plt.axis,
-        ax2,
+        ax2: plt.axis,
         style="stacked",
         ylabel="Events",
         sum_color=plot_style.KITColors.kit_purple,
@@ -559,26 +559,9 @@ class DataMCHistogramPlot(HistogramPlot):
         self._bin_width = bin_width
 
         sum_w = self.get_all_component_sum()
-        sum_w2 = self.get_all_component_sum(squared = True)
+        sum_w2 = self.get_all_component_sum(squared=True)
 
-        if style == "normalized":
-            hdata, _ = np.histogram(self._data_component.data, bins=bin_edges)
-            # Normalize errors to 1 before we change the data
-            hdata_err = np.sqrt(hdata) / hdata.sum()
-            # Normalize data to 1
-            hdata = hdata / hdata.sum()
-
-            norm_weight = np.array(
-                [comp.weights.sum() for comp in self._mc_components["MC"]]
-            ).sum()
-
-        else:
-            hdata, _ = np.histogram(
-                self._data_component.data,
-                bins=bin_edges,
-                weights=self._data_component.weights,
-            )
-            hdata_err = np.sqrt(hdata)
+        hdata, hdata_err = self.prepare_data(style)
 
         if style.lower() == "stacked":
             ax1.hist(
@@ -606,6 +589,7 @@ class DataMCHistogramPlot(HistogramPlot):
             )
 
         if style.lower() == "normalized":
+
             ax1.hist(
                 x=[comp.data for comp in self._mc_components["MC"]],
                 bins=bin_edges,
@@ -753,3 +737,53 @@ class DataMCHistogramPlot(HistogramPlot):
             )
 
         return weighted_sum
+
+    def prepare_data(self, style: str):
+        """Bins experimental data and calculates the statistical error bars
+
+        :param: style: defines whether the data will be normalized too or notx
+        """
+
+        hdata, _ = self.histogram_data()
+
+        hdata_err = self.get_data_errors(hdata, style)
+
+        if style == "normalized":
+            # Normalize data to 1
+            # This needs to happen after we normalize the errors in the get_data_errors method
+            hdata = hdata / hdata.sum()
+
+        return hdata, hdata_err
+
+    def histogram_data(self):
+        """Returns  the data components histogrammed"""
+        return np.histogram(
+            self._data_component.data,
+            bins=self._bin_edges,
+            weights=self._data_component.weights,
+        )
+
+    def get_data_errors(self, hdata: np.array, style: str):
+        """Return the error of the data component
+        If the style is specified to normalized, it will normalize the data error
+
+        :param hdata: binned data points
+        :param: style: defines whether the errors will be normalized too or not
+        """
+        if style == "normalized":
+            # Normalize errors to 1 before we change the data
+            hdata_err = np.sqrt(hdata) / hdata.sum()
+        else:
+            hdata_err = np.sqrt(hdata)
+
+        return hdata_err
+
+    def calculate_normalization_weight(self):
+        """Calculates normalization weight for the MC components
+
+        :returns the normalization factor to normalize mc to one
+        """
+
+        return np.array(
+            [comp.weights.sum() for comp in self._mc_components["MC"]]
+        ).sum()
