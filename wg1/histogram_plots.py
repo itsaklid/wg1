@@ -338,13 +338,25 @@ class HistogramPlot:
     def bin_edges(self):
         return self._bin_edges
 
+    @bin_edges.setter
+    def bin_edges(self, bin_edges):
+        self._bin_edges = bin_edges
+
     @property
     def bin_mids(self):
         return self._bin_mids
 
+    @bin_mids.setter
+    def bin_mids(self, bin_mids):
+        self._bin_mids = bin_mids
+
     @property
     def bin_width(self):
         return self._bin_width
+
+    @bin_width.setter
+    def bin_width(self, bin_width):
+        self._bin_width = bin_width
 
 
 class SimpleHistogramPlot(HistogramPlot):
