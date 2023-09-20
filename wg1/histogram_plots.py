@@ -464,7 +464,7 @@ class DataMCHistogramPlot(HistogramPlot):
         sum_color=plot_style.KITColors.kit_purple,
         draw_legend: bool = True,
         legend_inside: bool = True,
-        pull="ratio",
+        pull_type="ratio",
         pull_range: tuple = (-1, 1),
     ):
         sum_w = self.get_all_component_sum()
@@ -473,70 +473,65 @@ class DataMCHistogramPlot(HistogramPlot):
         hdata, hdata_err = self.prepare_data(style)
 
         if style.lower() == "stacked":
-            ax1.hist(
-                x=[comp.data for comp in self._mc_components["MC"]],
-                bins=self._variable.bin_edges,
-                weights=[comp.weights for comp in self._mc_components["MC"]],
-                stacked=True,
-                edgecolor="black",
-                lw=0.3,
-                color=[comp.color for comp in self._mc_components["MC"]],
-                label=[comp.label for comp in self._mc_components["MC"]],
-                histtype="stepfilled",
-            )
-
-            ax1.bar(
-                x=self._variable.bin_mids,
-                height=2 * np.sqrt(sum_w2),
-                width=self._variable.bin_widths,
-                bottom=sum_w - np.sqrt(sum_w2),
-                color="black",
-                hatch="///////",
-                fill=False,
-                lw=0,
-                label="MC stat. unc.",
-            )
-
-        if style.lower() == "normalized":
-
-            ax1.hist(
-                x=[comp.data for comp in self._mc_components["MC"]],
-                bins=self._bin_edges,
-                weights=[
-                    comp.weights / norm_weight for comp in self._mc_components["MC"]
-                ],
-                stacked=True,
-                edgecolor="black",
-                lw=0.3,
-                color=[comp.color for comp in self._mc_components["MC"]],
-                label=[comp.label for comp in self._mc_components["MC"]],
-                histtype="stepfilled",
-            )
-
-            ax1.bar(
-                x=self._variable.bin_mids,
-                height=(2 * np.sqrt(sum_w2)) / norm_weight,
-                width=self._variable.bin_widths,
-                bottom=(sum_w - np.sqrt(sum_w2)) / norm_weight,
-                color="black",
-                hatch="///////",
-                fill=False,
-                lw=0,
-                label="MC stat. unc.",
-            )
+            self.plot_stacked(ax1, sum_w, sum_w2)
 
         if style.lower() == "summed":
-            ax1.bar(
-                x=self._variable.bin_mids,
-                height=2 * np.sqrt(sum_w2),
-                width=self._variable.bin_widths,
-                bottom=sum_w - np.sqrt(sum_w2),
-                color=sum_color,
-                lw=0,
-                label="MC",
-            )
+            self.plot_summed(ax1, sum_w, sum_w2, sum_color)
 
-        ax1.errorbar(
+        self.plot_data(ax1, hdata, hdata_err)
+
+        normed = True if style.lower() == "normalized" else False
+        y_label = self._get_y_label(normed, evts_or_cand=ylabel)
+
+        ax1.set_ylabel(y_label, plot_style.ylabel_pos)
+
+        if draw_legend:
+            self.add_legend(ax1, legend_inside)
+
+        self.plot_pulls(ax2, pull_type, pull_range, sum_w, sum_w2, hdata, hdata_err)
+
+        plt.subplots_adjust(hspace=0.08)
+
+    def plot_stacked(self, axis, sum_w, sum_w2) -> None:
+
+        axis.hist(
+            x=[comp.data for comp in self._mc_components["MC"]],
+            bins=self._variable.bin_edges,
+            weights=[comp.weights for comp in self._mc_components["MC"]],
+            stacked=True,
+            edgecolor="black",
+            lw=0.3,
+            color=[comp.color for comp in self._mc_components["MC"]],
+            label=[comp.label for comp in self._mc_components["MC"]],
+            histtype="stepfilled",
+        )
+
+        axis.bar(
+            x=self._variable.bin_mids,
+            height=2 * np.sqrt(sum_w2),
+            width=self._variable.bin_widths,
+            bottom=sum_w - np.sqrt(sum_w2),
+            color="black",
+            hatch="///////",
+            fill=False,
+            lw=0,
+            label="MC stat. unc.",
+        )
+
+    def plot_summed(self, axis, sum_w, sum_w2, sum_color) -> None:
+        axis.bar(
+            x=self._variable.bin_mids,
+            height=2 * np.sqrt(sum_w2),
+            width=self._variable.bin_widths,
+            bottom=sum_w - np.sqrt(sum_w2),
+            color=sum_color,
+            lw=0,
+            label="MC",
+        )
+
+    def plot_data(self, axis, hdata, hdata_err) -> None:
+
+        axis.errorbar(
             x=self._variable.bin_mids,
             y=hdata,
             yerr=hdata_err,
@@ -546,65 +541,94 @@ class DataMCHistogramPlot(HistogramPlot):
             label=self._data_component.label,
         )
 
-        normed = True if style.lower() == "normalized" else False
-        y_label = self._get_y_label(normed, evts_or_cand=ylabel)
-        # ax1.legend(loc=0, bbox_to_anchor=(1,1))
-        ax1.set_ylabel(y_label, plot_style.ylabel_pos)
+    def add_legend(self, axis, legend_inside) -> None:
+        if legend_inside:
+            axis.legend(frameon=False)
+            ylims = axis.get_ylim()
+            axis.set_ylim(ylims[0], 1.4 * ylims[1])
+        else:
+            axis.legend(frameon=False, bbox_to_anchor=(1, 1))
 
-        if draw_legend:
-            if legend_inside:
-                ax1.legend(frameon=False)
-                ylims = ax1.get_ylim()
-                ax1.set_ylim(ylims[0], 1.4 * ylims[1])
-            else:
-                ax1.legend(frameon=False, bbox_to_anchor=(1, 1))
+    def calculate_pull(self, pull_type: str, sum_w, sum_w2, hdata, hdata_err):
 
-        if pull == "ratio":
-            ax2.set_ylabel(r"$\frac{\mathrm{Data - MC}}{\mathrm{Data}}$")
-            ax2.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
-            ax2.set_ylim((pull_range[0], pull_range[1]))
+        uhmc = unp.uarray(sum_w, np.sqrt(sum_w2))
+        uhdata = unp.uarray(hdata, hdata_err)
 
-            # try:
-            uhdata = unp.uarray(hdata, hdata_err)
-            uhmc = (
-                unp.uarray(sum_w / norm_weight, np.sqrt(sum_w2) / norm_weight)
-                if style.lower() == "normalized"
-                else unp.uarray(sum_w, np.sqrt(sum_w2))
+        if pull_type == "ratio":
+            # Avoid 0 denominator
+            pull = (uhdata - uhmc) / (uhdata + 10e-20)
+        elif pull_type == "residuals":
+            # Avoid 0 denominator
+            pull = (uhdata - uhmc) / np.sqrt(
+                np.power(unp.std_devs(uhdata), 2)
+                + np.power(unp.std_devs(uhmc), 2)
+                + 10e-20
             )
-            ratio = (uhdata - uhmc) / uhdata
+        return pull
 
-        elif pull == "residuals":
+    def draw_unc_bands(self, axis, x_range, sigmas):
+        """
+        Draw uncertainty bands on the given axis.
 
-            ax2.set_ylabel(
-                r"$\frac{\mathrm{N_{Data} - N_{MC}}}{\mathrm{\sqrt{\sigma_{N_{Data}}^{2} + \sigma_{N_{MC}}^{2}}}}$"
+        This function draws uncertainty bands on the provided axis for a range of x-values
+        based on the specified sigma values.
+
+        Args:
+            axis: The axis object where the bands will be drawn.
+            x_range: The range of x-values for which the bands will be drawn.
+            sigmas: A list of sigma values representing the uncertainty levels.
+
+        """
+        for i, j in enumerate(sigmas):
+            baseline = 0 if i == 0 else sigmas[i - 1]
+            # Draw the upper uncertainty band
+            axis.fill_between(
+                x_range,
+                [sigmas[i], sigmas[i]],
+                baseline,
+                color="#004e9f",
+                alpha=0.25 - 0.05 * i,
             )
-            ax2.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
-            ax2.set_ylim((pull_range[0], pull_range[1]))
-
-            # try:
-            uhdata = unp.uarray(hdata, hdata_err)
-            uhmc = (
-                unp.uarray(sum_w / norm_weight, np.sqrt(sum_w2) / norm_weight)
-                if style.lower() == "normalized"
-                else unp.uarray(sum_w, np.sqrt(sum_w2))
-            )
-            ratio = (uhdata - uhmc) / np.sqrt(
-                np.power(unp.std_devs(uhdata), 2) + np.power(unp.std_devs(uhmc), 2)
+            # Draw the lower uncertainty band
+            axis.fill_between(
+                x_range,
+                [-sigmas[i], -sigmas[i]],
+                baseline,
+                color="#004e9f",
+                alpha=0.25 - 0.05 * i,
             )
 
-        ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
-        ax2.errorbar(
+    def plot_pulls(
+        self, axis, pull_type: str, pull_range, sum_w, sum_w2, hdata, hdata_err
+    ):
+
+        axis.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
+
+        pull = self.calculate_pull(pull_type, sum_w, sum_w2, hdata, hdata_err)
+
+        axis.errorbar(
             self._variable.bin_mids,
-            unp.nominal_values(ratio),
-            yerr=unp.std_devs(ratio),
+            unp.nominal_values(pull),
+            yerr=unp.std_devs(pull),
             ls="",
             marker=".",
             color=plot_style.KITColors.kit_black,
         )
-        # except ZeroDivisionError:
-        #    ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
 
-        plt.subplots_adjust(hspace=0.08)
+        axis.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
+        axis.set_ylim((pull_range[0], pull_range[1]))
+
+        if pull_type == "ratio":
+            axis.set_ylabel(r"$\frac{\mathrm{Data - MC}}{\mathrm{Data}}$")
+        elif pull_type == "residuals":
+            axis.set_ylabel(
+                r"$\frac{\mathrm{N_{Data} - N_{MC}}}{\mathrm{\sqrt{\sigma_{N_{Data}}^{2} + \sigma_{N_{MC}}^{2}}}}$"
+            )
+            self.draw_unc_bands(axis, self._variable.scope, [1, 3, 5])
+            axis.set_yticks([-5, -3, -1, 1, 3, 5], [-5, -3, -1, 1, 3, 5])
+
+        else:
+            raise ValueError(f"Unknown type of pull: {pull_type}")
 
     def get_all_component_sum(self, squared: bool = False):
         """Calculates the weighted sum of all components of the histogram.
@@ -647,7 +671,7 @@ class DataMCHistogramPlot(HistogramPlot):
 
         return weighted_sum
 
-    def prepare_data(self, style: str):
+    def prepare_data(self, style: str = None):
         """Bins experimental data and calculates the statistical error bars
 
         :param: style: defines whether the data will be normalized too or notx
