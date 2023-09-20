@@ -4,7 +4,8 @@ histograms of given data.
 """
 import itertools
 from collections import defaultdict
-from typing import Tuple, Union
+from typing import Tuple, Union, Iterable
+from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,67 +22,68 @@ def test_func():
     return 10
 
 
+@dataclass
 class HistVariable:
     """
     Helper class with properties describing the variable which will be plotted
     with HistogramPlot classes.
     """
 
-    def __init__(
-        self,
-        df_label: str,
-        n_bins: int,
-        scope: Union[Tuple[float, float], None] = None,
-        var_name: Union[str, None] = None,
-        unit: Union[str, None] = None,
-        use_logspace: bool = False,
-    ):
+    df_label: str
+    bins: Union[int, Iterable]
+    scope: Tuple[float, float]
+    var_name: Union[str, None] = None
+    unit: Union[str, None] = None
+    use_logspace: bool = False
+
+    """
+    HistVariable constructor.
+    :param df_label: Label of the variable for the column in a pandas
+    dataframe.
+    :param scope: Tuple with the scope of the variable
+    :param var_name: Name of the variable used for the x axis in Plots.
+        Preferably using Latex strings like r'$\mathrm{m}_{\mu\mu}$'.
+    :param unit: Unit of the variable, like GeV.
+    :param use_logspace: If true, x axis will be plotted in logspace.
+    Default is False.
         """
-        HistVariable constructor.
-        :param df_label: Label of the variable for the column in a pandas
-        dataframe.
-        :param n_bins: Number of bins used in the histogram.
-        :param scope: Tuple with the scope of the variable
-        :param var_name: Name of the variable used for the x axis in Plots.
-                         Preferably using Latex strings like r'$\mathrm{m}_{\mu\mu}$'.
-        :param unit: Unit of the variable, like GeV.
-        :param use_logspace: If true, x axis will be plotted in logspace.
-                             Default is False.
-        """
-        self._df_label = df_label
-        self._scope = scope
-        self._var_name = var_name
-        self._x_label = var_name + f" in {unit}" if unit else var_name
-        self._unit = unit
-        self._n_bins = n_bins
-        self._use_logspace = use_logspace
 
     @property
-    def df_label(self) -> str:
-        """
-        Column name of the variable in a pandas dataframe.
-        :return: str
-        """
-        return self._df_label
+    def x_label(self) -> str:
+        return self.var_name + f" in {self.unit}" if self.unit else self.var_name
 
-    def has_scope(self) -> bool:
-        """
-        Checks if scope is set.
-        :return: True if HistVariable has scope parameter set, False otherwise.
-        """
-        if self._scope is not None:
-            return True
+    @x_label.setter
+    def x_label(self, label):
+        self._x_label = label
+
+    @property
+    def bin_edges(self) -> np.ndarray:
+
+        if isinstance(self.bins, int):
+            if not self.use_logspace:
+                _bin_edges = np.linspace(self.scope[0], self.scope[-1], self.bins + 1)
+            else:
+                _bin_edges = np.logspace(
+                    np.log10(self.scope[0]), np.log10(self.scope[-1]), self.bins + 1
+                )
         else:
-            return False
+            _bin_edges = self.bins
+
+        return np.array(_bin_edges)
+
+    @bin_edges.setter
+    def bin_edges(self, values):
+        self._bin_edges = values
 
     @property
-    def n_bins(self):
-        """
-        Number of bins used in the histogram.
-        :return: int
+    def bin_mids(self) -> np.ndarray:
+        return (self.bin_edges[1:] + self.bin_edges[:-1]) / 2
 
-        """
-        return self._n_bins
+    @property
+    def bin_widths(self):
+        return np.array(
+            [x - y for x, y in zip(self.bin_edges[1:], self.bin_edges[:-1])]
+        )
 
     @property
     def scope(self) -> Tuple[float, float]:
@@ -94,44 +96,6 @@ class HistVariable:
     @scope.setter
     def scope(self, value):
         self._scope = value
-
-    @property
-    def x_label(self):
-        """
-        X label of the variable shown in the plot, like r'$\cos(\theta_v)$'.
-        :return: str
-        """
-        if self._x_label is not None:
-            return self._x_label
-        else:
-            return ""
-
-    @x_label.setter
-    def x_label(self, label):
-        self._x_label = label
-
-    @property
-    def unit(self):
-        """
-        Physical unit of the variable, like Gev.
-        :return: str
-        """
-        if self._unit is not None:
-            return self._unit
-        else:
-            return ""
-
-    @unit.setter
-    def unit(self, unit):
-        self._unit = unit
-
-    @property
-    def use_logspace(self):
-        """
-        Flag for logscale on this axis
-        :return: str
-        """
-        return self._use_logspace
 
 
 class HistComponent:
@@ -212,12 +176,8 @@ class HistogramPlot:
         histogramed.
         """
         self._variable = variable
-        self._num_bins = variable.n_bins
         self._mc_components = defaultdict(list)
         self._data_component = None
-        self._bin_edges = None
-        self._bin_mids = None
-        self._bin_width = None
 
     def add_component(
         self,
@@ -289,33 +249,7 @@ class HistogramPlot:
 
         return np.amin(min_vals), np.amax(max_vals)
 
-    def _get_bin_edges(self) -> Tuple[np.ndarray, np.ndarray, float]:
-        """
-        Calculates the bin edges for the histogram.
-        :return: Bin edges.
-        """
-        if self._variable.has_scope():
-            scope = self._variable.scope
-        else:
-            scope = self._find_range_from_components()
-
-        low, high = scope[0], scope[1]
-
-        if self._variable.use_logspace:
-            assert (
-                low > 0
-            ), f"Cannot use logspace for variable {self._variable.x_label} since the minimum value is <= 0."
-            bin_edges = np.logspace(np.log10(low), np.log10(high), self._num_bins + 1)
-        else:
-            bin_edges = np.linspace(low, high, self._num_bins + 1)
-
-        bin_mids = (bin_edges[1:] + bin_edges[:-1]) / 2
-        bin_width = bin_edges[1] - bin_edges[0]
-        return bin_edges, bin_mids, bin_width
-
-    def _get_y_label(
-        self, normed: bool, bin_width: float, evts_or_cand="Events"
-    ) -> str:
+    def _get_y_label(self, normed: bool, evts_or_cand="Events") -> str:
         """
         Creates the appropriate  y axis label for the histogram plot.
 
@@ -327,36 +261,17 @@ class HistogramPlot:
 
         if normed:
             return "Normalized in arb. units"
-        elif self._variable.use_logspace:
+        # catch case with un-equal binning
+        elif (
+            self._variable.use_logspace or len(np.unique(self._variable.bin_widths)) > 1
+        ):
             return f"{evts_or_cand} / Bin"
         else:
             return "{} / ({:.2g}{})".format(
-                evts_or_cand, bin_width, " " + self._variable.unit
+                evts_or_cand,
+                np.unique(self._variable.bin_widths)[0],
+                " " + self._variable.unit,
             )
-
-    @property
-    def bin_edges(self):
-        return self._bin_edges
-
-    @bin_edges.setter
-    def bin_edges(self, bin_edges):
-        self._bin_edges = bin_edges
-
-    @property
-    def bin_mids(self):
-        return self._bin_mids
-
-    @bin_mids.setter
-    def bin_mids(self, bin_mids):
-        self._bin_mids = bin_mids
-
-    @property
-    def bin_width(self):
-        return self._bin_width
-
-    @bin_width.setter
-    def bin_width(self, bin_width):
-        self._bin_width = bin_width
 
 
 class SimpleHistogramPlot(HistogramPlot):
@@ -388,11 +303,6 @@ class SimpleHistogramPlot(HistogramPlot):
 
         :return: matplotlib.pyplot.axis with histogram drawn on it
         """
-        bin_edges, bin_mids, bin_width = self._get_bin_edges()
-
-        self._bin_edges = bin_edges
-        self._bin_mids = bin_mids
-        self._bin_width = bin_width
 
         for component in self._mc_components["single"]:
             if component.histtype == "stepfilled":
@@ -403,7 +313,7 @@ class SimpleHistogramPlot(HistogramPlot):
                 alpha = 1.0
             ax.hist(
                 x=component.data,
-                bins=bin_edges,
+                bins=self._variable.bin_edges,
                 density=normed,
                 weights=component.weights,
                 histtype=component.histtype,
@@ -418,9 +328,7 @@ class SimpleHistogramPlot(HistogramPlot):
         if not hide_labels:
             ax.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
 
-            y_label = self._get_y_label(
-                normed=normed, bin_width=bin_width, evts_or_cand=ylabel
-            )
+            y_label = self._get_y_label(normed=normed, evts_or_cand=ylabel)
             ax.set_ylabel(y_label, plot_style.ylabel_pos)
 
         if draw_legend:
@@ -451,15 +359,10 @@ class StackedHistogramPlot(HistogramPlot):
         legend_inside=True,
         hide_labels: bool = False,
     ):
-        bin_edges, bin_mids, bin_width = self._get_bin_edges()
-
-        self._bin_edges = bin_edges
-        self._bin_mids = bin_mids
-        self._bin_width = bin_width
 
         ax.hist(
             x=[comp.data for comp in self._mc_components["stacked"]],
-            bins=bin_edges,
+            bins=self._variable.bin_edges,
             weights=[comp.weights for comp in self._mc_components["stacked"]],
             stacked=True,
             edgecolor="black",
@@ -471,7 +374,7 @@ class StackedHistogramPlot(HistogramPlot):
 
         if not hide_labels:
             ax.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
-            y_label = self._get_y_label(False, bin_width, ylabel)
+            y_label = self._get_y_label(False, ylabel)
             ax.set_ylabel(y_label, plot_style.ylabel_pos)
         if draw_legend:
             if legend_inside:
@@ -564,12 +467,6 @@ class DataMCHistogramPlot(HistogramPlot):
         pull="ratio",
         pull_range: tuple = (-1, 1),
     ):
-        bin_edges, bin_mids, bin_width = self._get_bin_edges()
-
-        self._bin_edges = bin_edges
-        self._bin_mids = bin_mids
-        self._bin_width = bin_width
-
         sum_w = self.get_all_component_sum()
         sum_w2 = self.get_all_component_sum(squared=True)
 
@@ -578,7 +475,7 @@ class DataMCHistogramPlot(HistogramPlot):
         if style.lower() == "stacked":
             ax1.hist(
                 x=[comp.data for comp in self._mc_components["MC"]],
-                bins=bin_edges,
+                bins=self._variable.bin_edges,
                 weights=[comp.weights for comp in self._mc_components["MC"]],
                 stacked=True,
                 edgecolor="black",
@@ -589,9 +486,9 @@ class DataMCHistogramPlot(HistogramPlot):
             )
 
             ax1.bar(
-                x=bin_mids,
+                x=self._variable.bin_mids,
                 height=2 * np.sqrt(sum_w2),
-                width=self.bin_width,
+                width=self._variable.bin_widths,
                 bottom=sum_w - np.sqrt(sum_w2),
                 color="black",
                 hatch="///////",
@@ -604,7 +501,7 @@ class DataMCHistogramPlot(HistogramPlot):
 
             ax1.hist(
                 x=[comp.data for comp in self._mc_components["MC"]],
-                bins=bin_edges,
+                bins=self._bin_edges,
                 weights=[
                     comp.weights / norm_weight for comp in self._mc_components["MC"]
                 ],
@@ -617,9 +514,9 @@ class DataMCHistogramPlot(HistogramPlot):
             )
 
             ax1.bar(
-                x=bin_mids,
+                x=self._variable.bin_mids,
                 height=(2 * np.sqrt(sum_w2)) / norm_weight,
-                width=self.bin_width,
+                width=self._variable.bin_widths,
                 bottom=(sum_w - np.sqrt(sum_w2)) / norm_weight,
                 color="black",
                 hatch="///////",
@@ -630,9 +527,9 @@ class DataMCHistogramPlot(HistogramPlot):
 
         if style.lower() == "summed":
             ax1.bar(
-                x=bin_mids,
+                x=self._variable.bin_mids,
                 height=2 * np.sqrt(sum_w2),
-                width=self.bin_width,
+                width=self._variable.bin_widths,
                 bottom=sum_w - np.sqrt(sum_w2),
                 color=sum_color,
                 lw=0,
@@ -640,7 +537,7 @@ class DataMCHistogramPlot(HistogramPlot):
             )
 
         ax1.errorbar(
-            x=bin_mids,
+            x=self._variable.bin_mids,
             y=hdata,
             yerr=hdata_err,
             ls="",
@@ -650,7 +547,7 @@ class DataMCHistogramPlot(HistogramPlot):
         )
 
         normed = True if style.lower() == "normalized" else False
-        y_label = self._get_y_label(normed, bin_width, evts_or_cand=ylabel)
+        y_label = self._get_y_label(normed, evts_or_cand=ylabel)
         # ax1.legend(loc=0, bbox_to_anchor=(1,1))
         ax1.set_ylabel(y_label, plot_style.ylabel_pos)
 
@@ -697,7 +594,7 @@ class DataMCHistogramPlot(HistogramPlot):
 
         ax2.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
         ax2.errorbar(
-            bin_mids,
+            self._variable.bin_mids,
             unp.nominal_values(ratio),
             yerr=unp.std_devs(ratio),
             ls="",
@@ -725,7 +622,7 @@ class DataMCHistogramPlot(HistogramPlot):
                             comp.data,
                             comp.weights,
                             statistic="sum",
-                            bins=self._bin_edges,
+                            bins=self._variable.bin_edges,
                         )[0]
                         for comp in self._mc_components["MC"]
                     ]
@@ -740,7 +637,7 @@ class DataMCHistogramPlot(HistogramPlot):
                             comp.data,
                             comp.weights**2,
                             statistic="sum",
-                            bins=self._bin_edges,
+                            bins=self._variable.bin_edges,
                         )[0]
                         for comp in self._mc_components["MC"]
                     ]
@@ -771,7 +668,7 @@ class DataMCHistogramPlot(HistogramPlot):
         """Returns  the data components histogrammed"""
         return np.histogram(
             self._data_component.data,
-            bins=self._bin_edges,
+            bins=self._variable.bin_edges,
             weights=self._data_component.weights,
         )
 
