@@ -192,7 +192,7 @@ def create_hist_ratio_multi_figures(rows, columns, figsize, dpi):
     )
 
     # Reshape the axis to pairs of histo and pulls to plot them more easily in a loop
-    return fig, ax.T.reshape(rows * columns / 2, 2)
+    return fig, ax.T.reshape(int(rows * columns / 2), 2)
 
 
 def get_subplot_grid_dimensions(n_plots: int) -> int:

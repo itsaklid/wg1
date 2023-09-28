@@ -466,6 +466,7 @@ class DataMCHistogramPlot(HistogramPlot):
         legend_inside: bool = True,
         pull_type="ratio",
         pull_range: tuple = (-1, 1),
+        hide_label = None,
     ):
         sum_w = self.get_all_component_sum()
         sum_w2 = self.get_all_component_sum(squared=True)
@@ -483,12 +484,15 @@ class DataMCHistogramPlot(HistogramPlot):
         normed = True if style.lower() == "normalized" else False
         y_label = self._get_y_label(normed, evts_or_cand=ylabel)
 
-        ax1.set_ylabel(y_label, plot_style.ylabel_pos)
+        if hide_label not in ["y", "both"]:
+            ax1.set_ylabel(y_label, plot_style.ylabel_pos)
 
         if draw_legend:
             self.add_legend(ax1, legend_inside)
 
-        self.plot_pulls(ax2, pull_type, pull_range, sum_w, sum_w2, hdata, hdata_err)
+        self.plot_pulls(
+            ax2, pull_type, pull_range, sum_w, sum_w2, hdata, hdata_err, hide_label
+        )
 
         plt.subplots_adjust(hspace=0.08)
 
@@ -599,7 +603,7 @@ class DataMCHistogramPlot(HistogramPlot):
             )
 
     def plot_pulls(
-        self, axis, pull_type: str, pull_range, sum_w, sum_w2, hdata, hdata_err
+        self, axis, pull_type: str, pull_range, sum_w, sum_w2, hdata, hdata_err, hide_label = None
     ):
 
         axis.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
@@ -615,15 +619,19 @@ class DataMCHistogramPlot(HistogramPlot):
             color=plot_style.KITColors.kit_black,
         )
 
-        axis.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
+        if hide_label not in ["x", "both"]:
+            axis.set_xlabel(self._variable.x_label, plot_style.xlabel_pos)
+            
         axis.set_ylim((pull_range[0], pull_range[1]))
 
         if pull_type == "ratio":
-            axis.set_ylabel(r"$\frac{\mathrm{Data - MC}}{\mathrm{Data}}$")
+            if hide_label not in ["y", "both"]:
+                axis.set_ylabel(r"$\frac{\mathrm{Data - MC}}{\mathrm{Data}}$")
         elif pull_type == "residuals":
-            axis.set_ylabel(
-                r"$\frac{\mathrm{N_{Data} - N_{MC}}}{\mathrm{\sqrt{\sigma_{N_{Data}}^{2} + \sigma_{N_{MC}}^{2}}}}$"
-            )
+            if hide_label not in ["y", "both"]:
+                axis.set_ylabel(
+                    r"$\frac{\mathrm{N_{Data} - N_{MC}}}{\mathrm{\sqrt{\sigma_{N_{Data}}^{2} + \sigma_{N_{MC}}^{2}}}}$"
+                )
             self.draw_unc_bands(axis, self._variable.scope, [1, 3, 5])
             axis.set_yticks([-5, -3, -1, 1, 3, 5], [-5, -3, -1, 1, 3, 5])
 
