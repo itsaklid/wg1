@@ -12,3 +12,7 @@ wg1.egg-info/SOURCES.txt
 wg1.egg-info/dependency_links.txt
 wg1.egg-info/requires.txt
 wg1.egg-info/top_level.txt
+wg1/__pycache__/__init__.cpython-38.pyc
+wg1/__pycache__/histogram_plots.cpython-38.pyc
+wg1/__pycache__/plot_style.cpython-38.pyc
+wg1/__pycache__/plot_utilities.cpython-38.pyc

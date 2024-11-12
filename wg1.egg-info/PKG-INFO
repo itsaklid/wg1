@@ -2,11 +2,13 @@ Metadata-Version: 2.1
 Name: wg1
 Version: 0.0.1
 Summary: Plotting template for the Belle II working group 1.
-Home-page: UNKNOWN
+Home-page: 
 Author: Max Welsch, Markus Prim, Peter Lewis
 Author-email: markus.prim@kit.edu
 License: MIT
-Platform: UNKNOWN
-
-UNKNOWN
-
+Requires-Dist: matplotlib
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: scipy
+Requires-Dist: uncertainties
+Requires-Dist: scikit-learn
