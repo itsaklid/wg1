@@ -389,13 +389,15 @@ class StackedHistogramPlot(HistogramPlot):
 
 
 class DataMCHistogramPlot(HistogramPlot):
-    def __init__(self, variable: HistVariable):
+    def __init__(self, variable: HistVariable, cov= None):
         """
         HistogramPlot constructor.
         :param variable: A HistVariable describing the variable to be
         histogramed.
         """
         super().__init__(variable=variable)
+
+        self.cov = cov
 
     def add_data_component(
         self,
@@ -465,7 +467,7 @@ class DataMCHistogramPlot(HistogramPlot):
         draw_legend: bool = True,
         legend_inside: bool = True,
         pull_type="ratio",
-        pull_range: tuple = (-1, 1),
+        pull_range: tuple = (-5, 5),
         hide_label = None,
     ):
         sum_w = self.get_all_component_sum()
@@ -491,7 +493,7 @@ class DataMCHistogramPlot(HistogramPlot):
             self.add_legend(ax1, legend_inside)
 
         self.plot_pulls(
-            ax2, pull_type, pull_range, sum_w, sum_w2, hdata, hdata_err, hide_label
+            ax2, pull_type, pull_range, sum_w, sum_w2, hdata, hdata_err, hide_label, style.lower()
         )
 
         plt.subplots_adjust(hspace=0.08)
@@ -510,16 +512,23 @@ class DataMCHistogramPlot(HistogramPlot):
             histtype="stepfilled",
         )
 
+        if self.cov is None:
+            band = np.sqrt(sum_w2)
+            label = "MC stat. unc."
+        else:
+            band = np.sqrt(sum_w2 + np.diag(self.cov))
+            label = "Total MC unc."
+            
         axis.bar(
             x=self._variable.bin_mids,
-            height=2 * np.sqrt(sum_w2),
+            height=2 * band,
             width=self._variable.bin_widths,
-            bottom=sum_w - np.sqrt(sum_w2),
+            bottom=sum_w - band,
             color="black",
             hatch="///////",
             fill=False,
             lw=0,
-            label="MC stat. unc.",
+            label=label
         )
 
     def plot_summed(self, axis, sum_w, sum_w2, sum_color) -> None:
@@ -553,21 +562,33 @@ class DataMCHistogramPlot(HistogramPlot):
         else:
             axis.legend(frameon=False, bbox_to_anchor=(1, 1))
 
-    def calculate_pull(self, pull_type: str, sum_w, sum_w2, hdata, hdata_err):
+    def calculate_pull(self, pull_type: str, style):
 
+        sum_w = self.get_all_component_sum()
+        sum_w2 = self.get_all_component_sum(squared=True)
+        hdata, hdata_err = self.prepare_data(style)
+        
         uhmc = unp.uarray(sum_w, np.sqrt(sum_w2))
         uhdata = unp.uarray(hdata, hdata_err)
 
+        residual = hdata - sum_w
+
         if pull_type == "ratio":
             # Avoid 0 denominator
-            pull = (uhdata - uhmc) / (uhdata + 10e-20)
+            pull = residual / (uhdata + 10e-20)
         elif pull_type == "residuals":
-            # Avoid 0 denominator
-            pull = (uhdata - uhmc) / np.sqrt(
-                np.power(unp.std_devs(uhdata), 2)
-                + np.power(unp.std_devs(uhmc), 2)
-                + 10e-20
-            )
+            if self.cov is None:
+                # Avoid 0 denominator
+                pull = residual / np.sqrt(
+                    np.power(hdata_err, 2)
+                    + sum_w2
+                    + 10e-20
+                )
+                print("None")
+            else:
+                pull = residual / np.sqrt(hdata_err**2 + sum_w2 + np.diag(self.cov))
+
+        print(pull)
         return pull
 
     def draw_unc_bands(self, axis, x_range, sigmas):
@@ -590,30 +611,32 @@ class DataMCHistogramPlot(HistogramPlot):
                 x_range,
                 [sigmas[i], sigmas[i]],
                 baseline,
-                color="#004e9f",
-                alpha=0.25 - 0.05 * i,
+                #color="#004e9f",
+                color = (0.7019607843137254, 0.7019607843137254, 0.7019607843137254),
+                alpha=1 - 0.4 * i,
             )
             # Draw the lower uncertainty band
             axis.fill_between(
                 x_range,
                 [-sigmas[i], -sigmas[i]],
                 baseline,
-                color="#004e9f",
-                alpha=0.25 - 0.05 * i,
+                #color="#004e9f",
+                color = (0.7019607843137254, 0.7019607843137254, 0.7019607843137254),
+                alpha=1 - 0.4 * i,
             )
 
     def plot_pulls(
-        self, axis, pull_type: str, pull_range, sum_w, sum_w2, hdata, hdata_err, hide_label = None
+            self, axis, pull_type: str, pull_range, sum_w, sum_w2, hdata, hdata_err, hide_label = None, style = None
     ):
 
         axis.axhline(y=0, color=plot_style.KITColors.dark_grey, alpha=0.8)
 
-        pull = self.calculate_pull(pull_type, sum_w, sum_w2, hdata, hdata_err)
+        pull = self.calculate_pull(pull_type, style)
 
         axis.errorbar(
             self._variable.bin_mids,
             unp.nominal_values(pull),
-            yerr=unp.std_devs(pull),
+            #yerr=unp.std_devs(pull),
             ls="",
             marker=".",
             color=plot_style.KITColors.kit_black,
