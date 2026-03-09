@@ -556,11 +556,11 @@ class DataMCHistogramPlot(HistogramPlot):
 
     def add_legend(self, axis, legend_inside) -> None:
         if legend_inside:
-            axis.legend(frameon=False)
+            axis.legend(frameon=False,)
             ylims = axis.get_ylim()
             axis.set_ylim(ylims[0], 1.4 * ylims[1])
         else:
-            axis.legend(frameon=False, bbox_to_anchor=(1, 1))
+            axis.legend(frameon=False, bbox_to_anchor=(1.01, 1),)
 
     def calculate_pull(self, pull_type: str, style):
 
@@ -584,11 +584,10 @@ class DataMCHistogramPlot(HistogramPlot):
                     + sum_w2
                     + 10e-20
                 )
-                print("None")
             else:
                 pull = residual / np.sqrt(hdata_err**2 + sum_w2 + np.diag(self.cov))
 
-        print(pull)
+        #print(pull)
         return pull
 
     def draw_unc_bands(self, axis, x_range, sigmas):
